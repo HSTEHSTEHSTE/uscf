@@ -1,0 +1,135 @@
+# training
+training:
+  # Training parameters
+  project_name: LinearVC_CF-TTS
+  run_name: v2.15
+  epochs: 100000
+  num_workers: 16
+  max_frames_per_batch: 6500000 # 5 min todo fix
+  random_seed: 42
+  content_factorization: 
+    type: content # content, speaker
+    content_factorization_file: linearvc/exp/content_factorization/librispeech_dev-clean/rank_75/src_1272/transforms.npy # only used when type=content
+    factorization_speaker: path/to/LibriSpeech/dev-clean/1272 # only used when type=speaker
+  condition_drop_ratio: 0.0
+  noise_scale: 1.0
+  feature_scale: 0.1
+  normalize_input: true
+  sampling_steps: 16
+  clip_grad_norm: 1.0
+  use_grad_scaler: true
+  
+  # logging
+  log_every: 100
+
+  # Checkpoint managedment
+  out_dir: linearvc/exp/tts/cf_tts/v2.15
+  save_every_steps: 2000
+  save_every_epochs: 1
+  num_ckpt_best_loss: 3
+  num_ckpt_latest_epochs: 3
+  num_ckpt_latest_steps: 3
+
+
+# optimizer and scheduler
+optim:
+  lr: 5.0e-5
+  weight_decay: 1.0e-6
+  scheduler_type: '0'
+  scheduler_args:
+    factor: 0.2
+    total_iters: 1000
+
+
+# model specifications
+model:
+  tts:
+    zipvoice:
+      fm_decoder_downsampling_factor:
+        - 1
+        - 2
+        - 4
+        - 2
+        - 1
+
+      fm_decoder_num_layers:
+        - 2
+        - 2
+        - 4
+        - 4
+        - 4
+
+      fm_decoder_cnn_module_kernel:
+        - 31
+        - 15
+        - 7
+        - 15
+        - 31
+
+      fm_decoder_feedforward_dim: 1536
+      fm_decoder_num_heads: 4
+      fm_decoder_dim: 512
+
+      text_encoder_num_layers: 4
+      text_encoder_feedforward_dim: 512
+      text_encoder_cnn_module_kernel: 9
+      text_encoder_num_heads: 4
+      text_encoder_dim: 192
+
+      query_head_dim: 32
+      value_head_dim: 12
+      pos_head_dim: 4
+      pos_dim: 48
+
+      time_embed_dim: 192
+      text_embed_dim: 192
+
+      text_feat_dim: 75
+      feat_dim: 75
+
+      vocab_size: 80 # pre_phonemized: 39, otherwise 80
+      
+      mask_ratio_min: 0.2
+      mask_ratio_max: 1.0
+      mask_text: False
+
+      use_accent: False
+      accent_vocab_size: 14
+      accent_dim: 100
+
+# data
+data:
+  text_tokenizer:
+    type: phone  # spm, phone
+    pre_phonemized: false
+    tokenizer_file: linearvc/exp/asr/LibriSpeech/spm/phones_espeak.json
+  accent:
+    use_accent: False
+    accent_file: linearvc/exp/asr/CommonVoice/spm/accents.json
+  train:
+    dataset: 'commonvoice' # librispeech, commonvoice
+    load_path: linearvc/exp/tts/data/train_set_cv.pkl
+    commonvoice_subsets:
+      - linearvc/exp/asr/CommonVoice/clips/train.tsv
+    epoch_batch_limit: -1
+    shuffle_batches: true
+    shuffle_batches_between_epochs: true
+  dev:
+    dataset: 'commonvoice' # librispeech, commonvoice
+    load_path: null
+    commonvoice_subsets:
+      - linearvc/exp/asr/CommonVoice/clips/dev.tsv
+    epoch_batch_limit: 100
+    shuffle_batches: true
+    shuffle_batches_between_epochs: false
+  librispeech_audio_path: path/to/LibriSpeech
+  librispeech_transcript_path: path/to/LibriSpeech/orig_phones/transcript
+  commonvoice_root_path: path/to/commonvoice/en
+
+  # Target sampling rate for all audio
+  sampling_rate: 16000
+  max_audio_len: 480000
+
+  # Whether to sort utterances by audio length before batching
+  # (helps with GPU efficiency and stable training)
+  sort_by_length: true

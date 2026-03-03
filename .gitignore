@@ -4,6 +4,7 @@
 !*.py
 !*.pyx
 !*.yml
+!*.yaml
 !*.md
 !*.txt
 !*.ipynb
@@ -11,3 +12,5 @@
 .ipynb_checkpoints/*
 */.ipynb_checkpoints/*
 notebooks/.ipynb_checkpoints/*
+linearvc.egg-info
+exp

@@ -1,184 +1,135 @@
-# LinearVC: Linear transformations of self-supervised features through the lens of voice conversion
+# Universal Speech Content Factorization
+
+We propose Universal Speech Content Factorization (USCF), a simple and invertible linear method for extracting a low-rank speech representation in which speaker timbre is suppressed while phonetic content is preserved. USCF extends Speech Content Factorization (SCF), a closed-set voice conversion method, to an open-set setting by learning a universal speech-to-content mapping via least-squares optimization and deriving speaker-specific transformations from only a few seconds of target speech. We show through embedding analysis that USCF effectively removes speaker-dependent variation. As a zero-shot voice conversion system, USCF achieves competitive intelligibility, naturalness, and speaker similarity compared to methods that require substantially more target-speaker data or additional neural training. Finally, we demonstrate that USCF features can serve as an alternative acoustic representation for text-to-speech, offering a linear, training-efficient substitute for timbre-prompted SSL-based systems. 
+
+This codebase contains source code for the following:
+- Content Factorization (following SCF proposed in LinearVC[^linearvc]).
+- Voice Conversion (using SCF or USCF).
+- TTS training using USCF features as acoustic target.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](license.md)
-[![paper](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2506.01510)
-[![colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kamperh/linearvc/blob/master/demo.ipynb)
 
+## Dependencies
 
-## Overview
+Please refer to environment.yml. Make sure to install compatible version of PyTorch and cuVS.
 
-Voice conversion is performed using just linear regression. The work is described in:
+## Directory
 
-- H. Kamper, B. van Niekerk, J. Zaïdi, and M-A. Carbonneau, "LinearVC: Linear transformations of self-supervised features through the lens of voice conversion," in *Interspeech*, 2025.
-
-Samples: <https://www.kamperh.com/linearvc/>
-
-
-## Quick start
-
-### Programmatic usage
-
-Install the dependencies in `environment.yml` or run `conda env create -f environment.yml` and check that everything installed correctly. The steps below are also illustrated in the [demo notebook](demo.ipynb).
-
-```Python
-import torch
-import torchaudio
-
-device = "cuda"  # "cpu"
-
-# Load all the required models
-wavlm = torch.hub.load(
-    "bshall/knn-vc", 
-    "wavlm_large", 
-    trust_repo=True, 
-    progress=True, 
-    device=device, 
-)
-hifigan, _ = torch.hub.load(
-    "bshall/knn-vc",
-    "hifigan_wavlm",
-    trust_repo=True,
-    prematched=True,
-    progress=True,
-    device=device,
-)
-linearvc_model = linearvc.LinearVC(wavlm, hifigan, device)
-
-# Lists of source and target audio files
-source_wavs = [
-    "<filename of audio from source speaker 1>.wav",
-    "<filename of audio from source speaker 2>.wav",
-    ...,
-]
-target_wavs = [
-    "<filename of audio from target speaker 1>.wav",
-    "<filename of audio from target speaker 2>.wav",
-    ...,
-]
-
-# Source input utterance
-input_features = linearvc_model.get_features("<filename>.wav")
-
-# Voice conversion projection matrix
-W = linearvc_model.get_projmat(
-    source_wavs,
-    target_wavs,
-    parallel=True,  # enable if parallel
-    vad=False,
-)
-
-# Project the input and vocode
-output_wav = linearvc_model.project_and_vocode(input_features, W)
-torchaudio.save("output.wav", output_wav[None], 16000)
+### WavLM feature extraction
+LibriSpeech:
+```
+linearvc.egs.librispeech.extract_wavlm_libri \
+    --librispeech_dir /path/to/librispeech/dev-clean \
+    --output_dir /path/to/extract/features/dev-clean
+```
+TIMIT:
+```
+python -m linearvc.egs.timit.extract_wavlm_timit \
+    --timit_dir /path/to/timit/TRAIN \
+    --output_dir /path/to/extract/features/TRAIN
 ```
 
-If `parallel=True`, utterances with the same filename are paired up. If `parallel=False`, the utterances don't have to align, but then you need more data (3 minutes per speaker is good, more than that doesn't help much).
-
-
-### Script usage
-
-Perform LinearVC by finding all the source and target audio files in given directories:
-
-    ./linearvc.py \
-        --extension .flac \
-        ~/LibriSpeech/dev-clean/1272/ \
-        ~/LibriSpeech/dev-clean/1462/ \
-        ~/LibriSpeech/dev-clean/1272/128104/1272-128104-0000.flac \
-        output.wav
-
-When parallel utterances are available, much less data is needed. Running the script with `--parallel` as below scans two directories and pairs up all utterances with the same filename. E.g. below it finds `002.wav`, `003.wav`, etc. in the `p225/` source directory and then pairs these up with the same filenames in the `p226/` directory.
-
-    ./linearvc.py \
-        --parallel \
-        data/vctk_demo/p225/ \
-        data/vctk_demo/p226/ \
-        data/vctk_demo/p225/067.wav \
-        output2.wav
-
-Full script details:
-
+### Content Factorization
+LibriSpeech:
 ```
-usage: linearvc.py [-h] [--parallel] [--lasso LASSO] [--vad]
-                   [--extension {.flac,.wav}]
-                   source_wav_dir target_wav_dir input_wav output_wav
-
-Perform voice conversion with linear regression.
-
-positional arguments:
-  source_wav_dir        directory with source speaker speech
-  target_wav_dir        directory with target speaker speech
-  input_wav             input speech filename
-  output_wav            output speech filename
-
-options:
-  -h, --help            show this help message and exit
-  --parallel            whether source and target utterances are parallel, in
-                        which case the filenames in the two directories should
-                        match
-  --lasso LASSO         lasso is applied with this alpha value
-  --vad                 voice activatiy detecion is applied to start of
-                        utterance
-  --extension {.flac,.wav}
-                        source and target audio file extension (default:
-                        '.wav')
+python -m linearvc.egs.librispeech.experiments_libri \
+    --subset dev-clean \
+    --feats_dir /path/to/extracted/LibriSpeech/wavlm/feats \
+    --rank 75 \
+    --num_index 1 \
+    --out_path_root /path/to/transforms/output/path
+```
+TIMIT:
+```
+python -m linearvc.egs.timit.experiments_timit \
+    --subset TRAIN \
+    --feats_dir /path/to/extracted/TIMIT/wavlm/feats \
+    --wav_dir /path/to/TIMIT/root \
+    --rank 75 \
+    --num_index 1 \
+    --out_path_root /path/to/transforms/output/path
 ```
 
+### VC using kNN-VC, LinearVC, SCF, or USCF
+LibriSpeech:
+```
+linearvc/egs/librispeech/convert_libri_linearvc.py
+linearvc/egs/librispeech/convert_libri_cf.py
+```
+CommonVoice:
+```
+linearvc/egs/librispeech/convert_cv_knnvc.py
+linearvc/egs/librispeech/convert_cv_cf.py
+```
 
-## Experiments on all utterances (LibriSpeech)
+### Derive the Universal Speech-to-Content Mapping Matrix W
+```
+python -m linearvc.egs.librispeech.experiments_libri_inverse \
+    --transform_root_dir \path\to\transform\root \
+    --transform_type UTXSS
+```
 
-These experiments are described in ([Kamper et al. 2025](https://arxiv.org/abs/2506.01510)).
+### TTS using USCF Features
+Training:
+```
+python -m linearvc.cf_tts.train --config linearvc/cf_tts/config/config_v0.yaml
+```
+Inference:
+```
+linearvc/cf_tts/test.py
+linearvc/cf_tts/test_bulk.py
+```
 
-Extract WavLM features:
+### Evaluation Scripts
+Scripts to be found in
+```
+linearvc/eval
+```
 
-    ./extract_wavlm_libri.py \
-        --exclude data/eval_inputs_dev-clean.txt \
-        ~/endgame/datasets/librispeech/LibriSpeech/dev-clean/ \
-        ~/scratch/dev-clean/wavlm_exclude/
-    ./extract_wavlm_libri.py \ 
-        --exclude data/eval_inputs_test-clean.txt \
-        ~/endgame/datasets/librispeech/LibriSpeech/test-clean/ \
-        ~/scratch/test-clean/wavlm_exclude/
+## Interspeech Experiments and Results
+Test scripts for Interspeech to be found in
+```
+linearvc/egs/librispeech/interspeech_test
+```
 
-Experiments with all utterances:
+### VC results:
 
-    jupyter lab experiments_libri.ipynb
+| Method              | WER ↓    | UTMOS ↑ | Spk Sim ↑ | Spk EER ↓ | Tgt EER ↑ |
+|---------------------|----------|---------|-----------|-----------|-----------|
+| USCF, **W₁**        | 2.70%    | 2.805   | 0.524     | 1.62%     | 5.99%     |
+| USCF, **W₂**        | 4.04%    | 2.519   | 0.557     | 1.31%     | 6.98%     |
+| USCF, **W₃**        | 2.31%    | 2.826   | 0.420     | 4.92%     | 2.53%     |
+| kNN-VC              | 3.16%    | 2.855   | **0.666** | **0.28%** | **17.66%**|
+| LinearVC            | 2.69%    | 2.765   | 0.621     | 0.66%     | 12.09%    |
+| SCF                 | **2.18%**| 2.886   | 0.603     | 0.79%     | 10.82%    |
+| SCF, **W₁**         | 3.01%    | 2.859   | 0.604     | 0.68%     | 10.31%    |
+| SeedVC              | 6.24%    | **3.173**| 0.532    | 2.13%     | 7.25%     |
 
+### Comparison across different ranks:
+| Rank | ASR WER ↓ | UTMOS-v2 ↑ | Spk Sim ↑ | Spk EER ↓ | Target EER ↑ |
+|------|-----------|------------|-----------|-----------|--------------|
+| 10   | 6.97%     | 1.885      | 0.435     | 2.25%     | 1.39%        |
+| 20   | 3.98%     | 2.388      | 0.489     | 1.64%     | 3.24%        |
+| 30   | 2.96%     | 2.607      | 0.513     | 1.46%     | 4.72%        |
+| 50   | 2.69%     | 2.738      | 0.529     | 1.50%     | 5.94%        |
+| 75   | 2.70%     | 2.805      | 0.524     | 1.62%     | 5.99%        |
+| 100  | 2.77%     | 2.81       | 0.504     | 1.94%     | 5.29%        |
 
-## Experiments on parallel utterances (VCTK)
+### Comparison across different number of frames available for speaker transformation matrix derivation:
+| Num frames | ASR WER ↓ | UTMOS-v2 ↑ | Spk Sim ↑ | Spk EER ↓ | Target EER ↑ |
+|------------|-----------|------------|-----------|-----------|--------------|
+| 10000      | 2.28%     | 2.935      | 0.564     | 0.90%     | 7.86%        |
+| 5000       | 2.42%     | 2.923      | 0.564     | 0.90%     | 7.86%        |
+| 2000       | 2.47%     | 2.915      | 0.564     | 0.90%     | 7.86%        |
+| 1000       | 2.51%     | 2.904      | 0.546     | 1.06%     | 7.16%        |
+| 500        | 2.70%     | 2.805      | 0.524     | 1.62%     | 5.99%        |
+| 200        | 4.94%     | 2.431      | 0.42      | 5.93%     | 2.71%        |
+| 100        | 65.79%    | 1.544      | 0.22      | 23.01%    | 0.33%        |
 
-These experiments are not described in the paper but are still interesting.
+## Acknowledgements
 
-Downsample speech to 16kHz:
+This codebase was developed on top of [LinearVC](https://github.com/kamperh/linearvc)[^linearvc] and [ZipVoice](https://github.com/k2-fsa/ZipVoice) [^zipvoice].
 
-    # Development set
-    ./resample_vad.py \
-        data/vctk_scottish.txt \
-        ~/endgame/datasets/VCTK-Corpus/wav48/ \
-        ~/scratch/vctk/wav/scottish/
+[^linearvc]: H. Kamper, B. van Niekerk, J. Za¨ıdi, and M.-A. Carbonneau, “LinearVC: Linear Transformations of Self-Supervised Features Through the Lens of Voice Conversion,” in Interspeech 2025, 2025, pp. 1398–1402. 
 
-    # Test set
-    ./resample_vad.py \
-        data/vctk_english.txt \
-        ~/endgame/datasets/VCTK-Corpus/wav48/ \
-        ~/scratch/vctk/wav/english/
-
-Create the evaluation dataset (which is already in the `data/` directory released with the repo):
-
-    ./evalcsv_vctk.py \
-        data/vctk_scottish.txt \
-        /home/kamperh/scratch/vctk/wav/scottish/ \
-        data/speakersim_vctk_scottish_2024-09-16.csv
-    ./evalcsv_vctk.py \
-        data/vctk_english.txt \
-        /home/kamperh/scratch/vctk/wav/english/ \
-        data/speakersim_vctk_english_2024-09-16.csv
-
-Extract features for particular parallel utterances (for baselines):
-
-    ./extract_wavlm_vctk.py --utterance 008 \
-        ~/scratch/vctk/wav/english/ ~/scratch/vctk/english/wavlm_008/
-
-Experiments with parallel utterances:
-
-    jupyter lab experiments_vctk.ipynb
-
+[^zipvoice]: H. Zhu, W. Kang, Z. Yao, L. Guo, F. Kuang, Z. Li, W. Zhuang, L. Lin, and D. Povey, “Zipvoice: Fast and high-quality zero-shot text-to-speech with flow matching,” 2025. [Online]. Available: https://arxiv.org/abs/2506.13053 
