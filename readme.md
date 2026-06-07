@@ -1,7 +1,8 @@
 # Universal Speech Content Factorization
 
-**Paper:** [Universal Speech Content Factorization](https://arxiv.org/abs/2603.08977)  
-**Status:** Accepted to Interspeech  
+**Paper:** [Universal Speech Content Factorization](https://arxiv.org/abs/2603.08977) (Interspeech 2026)
+
+**Demo:** [USCF Demo Page](https://hstehstehste.github.io/Projects/uscf.github.io/index.html) 
 
 **Authors:** Henry Li Xinyuan, Zexin Cai, Lin Zhang, Leibny Paola García-Perera, Berrak Sisman, Sanjeev Khudanpur, Nicholas Andrews, Matthew Wiesner  
 
