@@ -15,7 +15,7 @@ import torch.nn as nn
 import torchaudio
 import torchaudio.functional as F
 
-from utils import fast_cosine_dist
+from .utils import fast_cosine_dist
 
 n_frames_max = 8192  # maximum no. of matched frames in linear regression
 k_top = 1
@@ -30,14 +30,14 @@ class LinearVC(nn.Module):
         self.sr = 16000
 
     @torch.inference_mode()
-    def get_features(self, wav_fn, vad=False):
+    def get_features(self, wav_fn, vad=False, max_frames=480000):
         """
         Return features of `wav_fn` as a tensor with shape (n_frames, dim).
 
         VAD is applied by default.
         """
 
-        wav, sr = torchaudio.load(wav_fn)
+        wav, sr = torchaudio.load(str(wav_fn))
         wav = wav.to(self.device)
 
         if not sr == self.sr:
@@ -45,8 +45,8 @@ class LinearVC(nn.Module):
                 wav,
                 orig_freq=sr,
                 new_freq=self.sr,
-                trigger_level=vad_trigger_level,
             )
+        wav = wav[:, :max_frames]
 
         # Trim silence at beginning (if specified)
         if vad:
@@ -67,14 +67,14 @@ class LinearVC(nn.Module):
         if not parallel:
             # Source features
             source_features = []
-            print("Source features:")
+            # print("Source features:")
             for wav_fn in tqdm(sorted(source_wavs), leave=True):
                 source_features.append(self.get_features(wav_fn, vad))
             source_features = torch.vstack(source_features)[:n_frames_max, :]
 
             # Target features
             target_features = []
-            print("Target features:")
+            # print("Target features:")
             for wav_fn in tqdm(sorted(target_wavs), leave=True):
                 target_features.append(self.get_features(wav_fn, vad))
             target_features = torch.vstack(target_features)[:n_frames_max, :]
@@ -133,7 +133,7 @@ class LinearVC(nn.Module):
             )
             W = linear.coef_.T
 
-        W = torch.from_numpy(W).float().to(self.device)
+        W = W.float().to(self.device)
         return W
 
     @torch.inference_mode()

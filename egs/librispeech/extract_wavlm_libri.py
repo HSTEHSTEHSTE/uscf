@@ -15,7 +15,7 @@ import sys
 import torch
 import torchaudio
 
-from utils import pca_transform
+from linearvc.utils import pca_transform
 
 device = "cuda"
 
@@ -23,12 +23,12 @@ device = "cuda"
 def check_argv():
     parser = argparse.ArgumentParser(description=__doc__.strip().split("\n")[0])
     parser.add_argument(
-        "librispeech_dir",
+        "--librispeech_dir",
         type=Path,
         help="LibriSpeech directory ending in e.g. `dev-clean/`",
     )
     parser.add_argument(
-        "output_dir",
+        "--output_dir",
         type=Path,
         help="output will be written to a `wavlm/` subdirectory",
     )
@@ -66,6 +66,8 @@ def main(args):
         with open(args.exclude) as f:
             for line in f:
                 exclude_utterances.add(line.strip())
+    else:
+        exclude_utterances = []
 
     wav_dir = args.librispeech_dir
     output_dir = args.output_dir
@@ -82,7 +84,7 @@ def main(args):
         for wav_fn in tqdm(sorted(speaker_dir.rglob("*/*.flac")), leave=False):
             if wav_fn.stem in exclude_utterances:
                 continue
-            wav, _ = torchaudio.load(wav_fn)
+            wav, _ = torchaudio.load(str(wav_fn))
             wav = wav.to(device)
             with torch.inference_mode():
                 x, _ = wavlm.extract_features(wav, output_layer=6)
