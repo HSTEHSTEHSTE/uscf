@@ -1,5 +1,14 @@
 # Universal Speech Content Factorization
 
+**Paper:** [Universal Speech Content Factorization](https://arxiv.org/abs/2603.08977)  
+**Status:** Accepted to Interspeech  
+
+**Authors:** Henry Li Xinyuan, Zexin Cai, Lin Zhang, Leibny Paola García-Perera, Berrak Sisman, Sanjeev Khudanpur, Nicholas Andrews, Matthew Wiesner  
+
+**Affiliations:** Human Language Technology Center of Excellence and Center for Language and Speech Processing, Johns Hopkins University
+
+We propose Universal Speech Content Factorization (USCF), a simple and invertible linear method for extracting a low-rank speech representation in which speaker timbre is suppressed while phonetic content is preserved.
+
 We propose Universal Speech Content Factorization (USCF), a simple and invertible linear method for extracting a low-rank speech representation in which speaker timbre is suppressed while phonetic content is preserved. USCF extends Speech Content Factorization (SCF), a closed-set voice conversion method, to an open-set setting by learning a universal speech-to-content mapping via least-squares optimization and deriving speaker-specific transformations from only a few seconds of target speech. We show through embedding analysis that USCF effectively removes speaker-dependent variation. As a zero-shot voice conversion system, USCF achieves competitive intelligibility, naturalness, and speaker similarity compared to methods that require substantially more target-speaker data or additional neural training. Finally, we demonstrate that USCF features can serve as an alternative acoustic representation for text-to-speech, offering a linear, training-efficient substitute for timbre-prompted SSL-based systems. 
 
 This codebase contains source code for the following:
